@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bank Queue Operations</title>
+<style>
+:root {
+    --ink: #f3fbff;
+    --ink-dark: #10202a;
+    --muted: #a9c0cc;
+    --soft: #102a35;
+    --panel: rgba(13, 39, 51, 0.9);
+    --panel-soft: rgba(20, 57, 70, 0.92);
+    --panel-dark: rgba(7, 22, 31, 0.95);
+    --line: rgba(126, 197, 210, 0.28);
+    --green: #18c79d;
+    --green-dark: #7ff0d1;
+    --blue: #53a7ff;
+    --amber: #f2b84b;
+    --red: #d94747;
+    --shadow: 0 22px 60px rgba(0, 14, 20, 0.34);
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    min-height: 100vh;
+    margin: 0;
+    font-family: Inter, Arial, sans-serif;
+    color: var(--ink);
+    background:
+        linear-gradient(120deg, rgba(5, 18, 26, 0.96), rgba(9, 58, 66, 0.8), rgba(38, 79, 91, 0.72)),
+        url("bank.jpg") center / cover fixed;
+}
+
+button, input, select {
+    font: inherit;
+}
+
+button {
+    min-height: 42px;
+    border: 0;
+    border-radius: 8px;
+    padding: 0 14px;
+    background: var(--green);
+    color: white;
+    font-weight: 800;
+    cursor: pointer;
+    transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease;
+}
+
+button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 10px 20px rgba(15, 159, 122, 0.2);
+}
+
+button:disabled {
+    cursor: not-allowed;
+    opacity: 0.48;
+    transform: none;
+    box-shadow: none;
+}
+
+button.secondary {
+    color: var(--ink);
+    background: rgba(83, 167, 255, 0.14);
+    border: 1px solid var(--line);
+}
+
+button.warning {
+    background: var(--amber);
+}
+
+button.danger {
+    background: var(--red);
+}
+
+button.ghost {
+    color: var(--green-dark);
+    background: rgba(24, 199, 157, 0.16);
+}
+
+input, select {
+    min-height: 42px;
+    width: 100%;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 0 12px;
+    color: var(--ink);
+    background: rgba(6, 24, 34, 0.72);
+    outline: none;
+}
+
+input:focus, select:focus {
+    border-color: var(--green);
+    box-shadow: 0 0 0 3px rgba(24, 199, 157, 0.18);
+}
+
+label {
+    display: grid;
+    gap: 7px;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 900;
+    text-transform: uppercase;
+}
+
+.app {
+    width: min(1240px, calc(100% - 28px));
+    margin: 0 auto;
+    padding: 24px 0;
+}
+
+.shell {
+    overflow: hidden;
+    border: 1px solid rgba(126, 197, 210, 0.36);
+    border-radius: 18px;
+    background: linear-gradient(145deg, rgba(9, 34, 45, 0.9), rgba(22, 73, 83, 0.78));
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(16px);
+}
+
+.topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 18px 20px;
+    background: var(--panel-dark);
+    color: white;
+}
+
+.brand {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.brand-mark {
+    display: grid;
+    place-items: center;
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #0f9f7a, #2563eb);
+    font-size: 19px;
+    font-weight: 900;
+}
+
+.brand h1 {
+    margin: 0;
+    font-size: clamp(22px, 3vw, 34px);
+    letter-spacing: 0;
+}
+
+.brand span {
+    display: block;
+    margin-top: 4px;
+    color: #b8c7cd;
+    font-size: 13px;
+}
+
+.top-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.status-pill {
+    min-width: 106px;
+    border: 1px solid rgba(126, 240, 209, 0.28);
+    border-radius: 999px;
+    padding: 10px 14px;
+    text-align: center;
+    color: #5ff0c6;
+    background: rgba(24, 199, 157, 0.14);
+    font-weight: 900;
+}
+
+.content {
+    display: grid;
+    grid-template-columns: 340px 1fr;
+    gap: 0;
+}
+
+.command {
+    border-right: 1px solid var(--line);
+    padding: 18px;
+    background: linear-gradient(180deg, rgba(11, 37, 49, 0.96), rgba(12, 54, 62, 0.9));
+}
+
+.main {
+    padding: 18px;
+}
+
+.section-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.section-title h2 {
+    margin: 0;
+    font-size: 18px;
+}
+
+.section-title span {
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.form-stack {
+    display: grid;
+    gap: 14px;
+}
+
+.field-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+.button-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+.message {
+    min-height: 50px;
+    border: 1px solid rgba(126, 240, 209, 0.28);
+    border-radius: 8px;
+    padding: 12px;
+    color: var(--green-dark);
+    background: rgba(24, 199, 157, 0.12);
+    line-height: 1.35;
+    font-weight: 700;
+}
+
+.divider {
+    height: 1px;
+    margin: 4px 0;
+    background: var(--line);
+}
+
+.metrics {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.metric {
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 14px;
+    background: var(--panel);
+}
+
+.metric span {
+    display: block;
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 900;
+    text-transform: uppercase;
+}
+
+.metric strong {
+    display: block;
+    margin-top: 8px;
+    font-size: 28px;
+}
+
+.meter {
+    height: 8px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: rgba(169, 192, 204, 0.2);
+}
+
+.meter div {
+    width: 0%;
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, var(--green), var(--blue));
+    transition: width 240ms ease;
+}
+
+.board {
+    display: grid;
+    gap: 14px;
+}
+
+.queue-panel {
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 14px;
+    background: var(--panel);
+}
+
+.queue-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.queue-head h3 {
+    margin: 0;
+    font-size: 16px;
+}
+
+.queue-meta {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 6px;
+}
+
+.chip {
+    border-radius: 999px;
+    padding: 6px 9px;
+    color: #d8f5ff;
+    background: rgba(83, 167, 255, 0.14);
+    font-size: 11px;
+    font-weight: 900;
+}
+
+.chip.hot {
+    color: #ffe0a1;
+    background: rgba(242, 184, 75, 0.18);
+}
+
+.slots {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(86px, 1fr));
+    gap: 10px;
+}
+
+.slot {
+    position: relative;
+    min-height: 96px;
+    overflow: hidden;
+    border: 1px dashed rgba(169, 192, 204, 0.44);
+    border-radius: 10px;
+    padding: 10px;
+    background: rgba(10, 33, 43, 0.72);
+    transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+}
+
+.slot:hover {
+    transform: translateY(-2px);
+    border-color: var(--green);
+}
+
+.slot.occupied {
+    border-style: solid;
+    background: linear-gradient(135deg, rgba(24, 199, 157, 0.22), rgba(83, 167, 255, 0.18));
+}
+
+.slot.priority.occupied {
+    background: linear-gradient(135deg, rgba(242, 184, 75, 0.3), rgba(255, 112, 112, 0.14));
+}
+
+.slot.front {
+    border-color: var(--amber);
+    box-shadow: inset 0 0 0 2px rgba(216, 137, 0, 0.22);
+}
+
+.slot.rear::after {
+    position: absolute;
+    right: 8px;
+    bottom: 8px;
+    border-radius: 999px;
+    padding: 4px 6px;
+    color: white;
+    background: var(--blue);
+    content: "REAR";
+    font-size: 9px;
+    font-weight: 900;
+}
+
+.slot.front::before {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    border-radius: 999px;
+    padding: 4px 6px;
+    color: white;
+    background: var(--amber);
+    content: "FRONT";
+    font-size: 9px;
+    font-weight: 900;
+}
+
+.slot-index {
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 900;
+}
+
+.token {
+    margin-top: 14px;
+    color: var(--ink);
+    font-size: 22px;
+    font-weight: 900;
+}
+
+.slot small {
+    display: block;
+    margin-top: 4px;
+    color: var(--muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.lower-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.1fr) minmax(280px, 0.9fr);
+    gap: 14px;
+    margin-top: 14px;
+}
+
+.counters, .events, .analysis {
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 14px;
+    background: var(--panel);
+}
+
+.counter-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 10px;
+}
+
+.counter-tile {
+    display: grid;
+    gap: 10px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 12px;
+    background: rgba(10, 33, 43, 0.68);
+}
+
+.counter-tile strong {
+    font-size: 15px;
+}
+
+.counter-tile span {
+    min-height: 36px;
+    color: var(--muted);
+    line-height: 1.35;
+}
+
+.events ol {
+    display: grid;
+    gap: 9px;
+    margin: 0;
+    padding-left: 20px;
+}
+
+.events li {
+    color: var(--muted);
+    line-height: 1.35;
+}
+
+.analysis {
+    margin-top: 14px;
+}
+
+.analysis-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.analysis-item {
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 12px;
+    background: rgba(10, 33, 43, 0.68);
+}
+
+.analysis-item strong {
+    display: block;
+    margin-bottom: 6px;
+}
+
+.analysis-item span {
+    color: var(--muted);
+    line-height: 1.35;
+}
+
+@media (max-width: 980px) {
+    .content, .lower-grid, .metrics, .analysis-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .command {
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+    }
+}
+
+@media (max-width: 640px) {
+    .topbar, .brand, .top-actions {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .field-grid, .button-grid {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+</head>
+<body>
+<main class="app">
+    <div class="shell">
+        <header class="topbar">
+            <div class="brand">
+                <div class="brand-mark">BQ</div>
+                <div>
+                    <h1>Bank Queue Operations</h1>
+                    <span>Circular queue dashboard</span>
+                </div>
+            </div>
+            <div class="top-actions">
+                <div class="status-pill" id="openStatus">OPEN</div>
+                <button class="secondary" onclick="toggleBank()" id="toggleBtn">Close Bank</button>
+            </div>
+        </header>
+
+        <div class="content">
+            <aside class="command">
+                <div class="section-title">
+                    <h2>Command Center</h2>
+                    <span id="clock">--:--:--</span>
+                </div>
+
+                <div class="form-stack">
+                    <div class="field-grid">
+                        <label>Capacity
+                            <input id="capacity" type="number" min="1" max="30" value="8">
+                        </label>
+                        <label>Counters
+                            <input id="counters" type="number" min="1" max="6" value="3">
+                        </label>
+                    </div>
+                    <button onclick="configureSystem()">Apply Setup</button>
+
+                    <div class="divider"></div>
+
+                    <label>Customer Name
+                        <input id="customerName" type="text" placeholder="Riya Sharma">
+                    </label>
+                    <label>Queue Type
+                        <select id="priority">
+                            <option value="regular">Regular</option>
+                            <option value="priority">Priority</option>
+                        </select>
+                    </label>
+                    <button onclick="addCustomer()">Add Token</button>
+
+                    <label>Service Counter
+                        <select id="counterSelect"></select>
+                    </label>
+                    <button class="warning" onclick="serveCustomer()">Serve Selected Counter</button>
+
+                    <button class="secondary" onclick="clearCounters()">Clear Counters</button>
+                    <button class="danger" onclick="resetSystem()">Reset Full System</button>
+                    <div class="message" id="message">System ready.</div>
+                </div>
+            </aside>
+
+            <section class="main">
+                <div class="metrics">
+                    <div class="metric"><span>Waiting</span><strong id="waiting">0</strong></div>
+                    <div class="metric"><span>Arrivals</span><strong id="arrivals">0</strong></div>
+                    <div class="metric"><span>Served</span><strong id="served">0</strong></div>
+                    <div class="metric"><span>Average Wait</span><strong id="avgWait">0s</strong></div>
+                </div>
+
+                <div class="queue-panel">
+                    <div class="queue-head">
+                        <h3>Queue Utilization</h3>
+                        <div class="queue-meta"><span class="chip" id="utilizationLabel">0%</span></div>
+                    </div>
+                    <div class="meter"><div id="utilizationBar"></div></div>
+                </div>
+
+                <div class="board">
+                    <div class="queue-panel">
+                        <div class="queue-head">
+                            <h3>Priority Queue</h3>
+                            <div class="queue-meta" id="priorityMeta"></div>
+                        </div>
+                        <div class="slots" id="prioritySlots"></div>
+                    </div>
+
+                    <div class="queue-panel">
+                        <div class="queue-head">
+                            <h3>Regular Queue</h3>
+                            <div class="queue-meta" id="regularMeta"></div>
+                        </div>
+                        <div class="slots" id="regularSlots"></div>
+                    </div>
+                </div>
+
+                <div class="lower-grid">
+                    <div class="counters">
+                        <div class="section-title">
+                            <h2>Service Counters</h2>
+                            <span>Click serve on any counter</span>
+                        </div>
+                        <div class="counter-grid" id="counterGrid"></div>
+                    </div>
+
+                    <div class="events">
+                        <div class="section-title">
+                            <h2>Activity Feed</h2>
+                            <span>Latest first</span>
+                        </div>
+                        <ol id="events"></ol>
+                    </div>
+                </div>
+
+                <div class="analysis">
+                    <div class="section-title">
+                        <h2>Algorithm Snapshot</h2>
+                        <span>Queue operations</span>
+                    </div>
+                    <div class="analysis-grid">
+                        <div class="analysis-item"><strong>Enqueue</strong><span>O(1), rear = (rear + 1) % capacity</span></div>
+                        <div class="analysis-item"><strong>Dequeue</strong><span>O(1), front = (front + 1) % capacity</span></div>
+                        <div class="analysis-item"><strong>Priority Serve</strong><span>Priority queue first, regular FIFO second</span></div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </div>
+</main>
+
+<script>
+const apiBase = "http://localhost:8000/api";
+let currentState = null;
+let activeFlashToken = null;
+
+async function request(path) {
+    const response = await fetch(`${apiBase}${path}`);
+    if (!response.ok) throw new Error("Request failed");
+    return response.json();
+}
+
+async function loadState() {
+    try {
+        const state = await request("/state");
+        render(state);
+    } catch (error) {
+        document.getElementById("message").textContent = "Start the server with npm start.";
+    }
+}
+
+async function configureSystem() {
+    const capacity = document.getElementById("capacity").value;
+    const counters = document.getElementById("counters").value;
+    const result = await request(`/configure?capacity=${encodeURIComponent(capacity)}&counters=${encodeURIComponent(counters)}`);
+    showResult(result);
+}
+
+async function addCustomer() {
+    const name = document.getElementById("customerName").value.trim();
+    if (!name) {
+        document.getElementById("message").textContent = "Please enter a customer name before adding a token.";
+        document.getElementById("customerName").focus();
+        return;
+    }
+    const priority = document.getElementById("priority").value;
+    const result = await request(`/customer?name=${encodeURIComponent(name)}&priority=${encodeURIComponent(priority)}`);
+    document.getElementById("customerName").value = "";
+    showResult(result);
+}
+
+async function serveCustomer(counterId) {
+    const counter = counterId || document.getElementById("counterSelect").value;
+    const result = await request(`/serve?counter=${encodeURIComponent(counter)}`);
+    if (result.state && result.state.lastServed) {
+        activeFlashToken = result.state.lastServed.token;
+        setTimeout(() => {
+            activeFlashToken = null;
+            if (currentState) render(currentState);
+        }, 900);
+    }
+    showResult(result);
+}
+
+async function toggleBank() {
+    const path = currentState && currentState.isOpen ? "/close" : "/open";
+    const result = await request(path);
+    showResult(result);
+}
+
+async function resetSystem() {
+    const result = await request("/reset");
+    showResult(result);
+}
+
+async function clearCounters() {
+    const result = await request("/clear-counters");
+    showResult(result);
+}
+
+function showResult(result) {
+    document.getElementById("message").textContent = result.message;
+    render(result.state);
+}
+
+function render(state) {
+    currentState = state;
+    const openStatus = document.getElementById("openStatus");
+    openStatus.textContent = state.isOpen ? "OPEN" : "CLOSED";
+    openStatus.style.color = state.isOpen ? "#5ff0c6" : "#ffadad";
+    document.getElementById("toggleBtn").textContent = state.isOpen ? "Close Bank" : "Open Bank";
+
+    document.getElementById("waiting").textContent = state.stats.waiting;
+    document.getElementById("arrivals").textContent = state.stats.totalArrivals;
+    document.getElementById("served").textContent = state.stats.totalServed;
+    document.getElementById("avgWait").textContent = `${state.stats.averageWait}s`;
+
+    const priorityPercent = percent(state.queues.priority.size, state.queues.priority.capacity);
+    const regularPercent = percent(state.queues.regular.size, state.queues.regular.capacity);
+    const utilization = Math.round((priorityPercent + regularPercent) / 2);
+    document.getElementById("utilizationBar").style.width = `${utilization}%`;
+    document.getElementById("utilizationLabel").textContent = `${utilization}%`;
+
+    renderQueue("priority", state.queues.priority);
+    renderQueue("regular", state.queues.regular);
+    renderCounters(state.counters);
+    renderEvents(state.events);
+    syncCounterSelect(state.counters);
+    syncDisabledState(state.isOpen);
+}
+
+function renderQueue(type, queue) {
+    const slots = document.getElementById(`${type}Slots`);
+    const meta = document.getElementById(`${type}Meta`);
+    slots.innerHTML = "";
+    meta.innerHTML = `
+        <span class="chip ${queue.isFull ? "hot" : ""}">size ${queue.size}/${queue.capacity}</span>
+        <span class="chip">front ${queue.front}</span>
+        <span class="chip">rear ${queue.rear}</span>
+    `;
+
+    queue.items.forEach((customer, index) => {
+        const slot = document.createElement("div");
+        slot.className = "slot";
+        if (type === "priority") slot.classList.add("priority");
+        if (customer) slot.classList.add("occupied");
+        if (index === queue.front) slot.classList.add("front");
+        if (index === queue.rear) slot.classList.add("rear");
+        if (customer && customer.token === activeFlashToken) slot.style.transform = "scale(0.96)";
+
+        const label = customer
+            ? `<div class="token">#${customer.token}</div><small>${escapeHtml(customer.name)}</small><small>${customer.priority}</small>`
+            : `<div class="token">Open</div><small>Index available</small>`;
+
+        slot.innerHTML = `<div class="slot-index">Index ${index}</div>${label}`;
+        slots.appendChild(slot);
+    });
+}
+
+function renderCounters(counters) {
+    const grid = document.getElementById("counterGrid");
+    grid.innerHTML = "";
+
+    counters.forEach((counter) => {
+        const card = document.createElement("div");
+        card.className = "counter-tile";
+        const current = counter.current
+            ? `Token #${counter.current.token} - ${counter.current.name || "Unnamed Customer"}`
+            : "Available";
+        card.innerHTML = `
+            <strong>Counter ${counter.id}</strong>
+            <span>${escapeHtml(current)}</span>
+            <div class="meter"><div style="width: ${Math.min(100, counter.served * 18)}%"></div></div>
+            <button onclick="serveCustomer(${counter.id})">Serve Here</button>
+        `;
+        grid.appendChild(card);
+    });
+}
+
+function renderEvents(events) {
+    const list = document.getElementById("events");
+    list.innerHTML = "";
+
+    events.forEach((event) => {
+        const item = document.createElement("li");
+        item.textContent = `${event.time} - ${event.message}`;
+        list.appendChild(item);
+    });
+}
+
+function syncCounterSelect(counters) {
+    const select = document.getElementById("counterSelect");
+    const selected = select.value;
+    select.innerHTML = "";
+
+    counters.forEach((counter) => {
+        const option = document.createElement("option");
+        option.value = counter.id;
+        option.textContent = `Counter ${counter.id}`;
+        select.appendChild(option);
+    });
+
+    if ([...select.options].some((option) => option.value === selected)) {
+        select.value = selected;
+    }
+}
+
+function syncDisabledState(isOpen) {
+    document.querySelectorAll("button").forEach((button) => {
+        const text = button.textContent.trim();
+        const allowedWhenClosed = ["Open Bank", "Apply Setup", "Reset Full System"].includes(text);
+        button.disabled = !isOpen && !allowedWhenClosed;
+    });
+}
+
+function percent(value, total) {
+    return total === 0 ? 0 : Math.round((value / total) * 100);
+}
+
+function escapeHtml(value) {
+    return String(value).replace(/[&<>"']/g, (char) => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#039;"
+    }[char]));
+}
+
+function tickClock() {
+    document.getElementById("clock").textContent = new Date().toLocaleTimeString("en-IN", { hour12: false });
+}
+
+tickClock();
+setInterval(tickClock, 1000);
+loadState();
+</script>
+</body>
+</html>
